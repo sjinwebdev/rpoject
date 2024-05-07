@@ -1,0 +1,624 @@
+﻿@{
+    ViewBag.Title = "Audit Records";
+}
+@*<script src="~/Scripts/jquery-3.2.1.min.js"></script>*@
+<link href="~/Scripts/jquery-ui-1.12.1.custom/jquery-ui.min.css" rel="stylesheet" />
+<script src="~/Scripts/jquery-ui-1.12.1.custom/jquery-ui.min.js"></script>
+<style>
+    #colorPicked1 {
+        height: 20px;
+        width: 20px;
+        position: relative;
+        top: 5px;
+        right: 5px;
+        z-index: 1000;
+    }
+
+    .image-holder {
+        right: -20px;
+    }
+
+    #tableImagelst tr:hover, tr.selected {
+        background-color: #00bcd461;
+    }
+
+    .close i {
+        font-size: 10px !important;
+    }
+
+    .disabledbutton {
+        pointer-events: none;
+        opacity: 0.4;
+    }
+
+    .col-md-4, .col-md-3, .col-md-5, .col-md-6 {
+        padding-left: 3px !important;
+        padding-right: 0px !important
+    }
+
+    #outerContainer #mainContainer div.toolbar {
+        display: none !important; /* hide PDF viewer toolbar */
+    }
+
+    #outerContainer #mainContainer #viewerContainer {
+        top: 0 !important; /* move doc up into empty bar space */
+    }
+
+    .outer {
+        overflow: hidden;
+        position: relative;
+    }
+
+    .inner {
+        margin-top: -31px;
+    }
+
+
+    /*Dropdown*/
+    .ui-widget {
+        font-family: Arial,Helvetica,sans-serif;
+        font-size: smaller;
+    }
+
+    .ui-menu .ui-menu-item-wrapper {
+        position: relative;
+        padding: 0px 0px 0px 0px;
+    }
+
+    .ui-menu .ui-menu-item {
+        margin: 0;
+        cursor: pointer;
+        /* list-style-image: url(data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7); */
+    }
+
+    .ui-menu {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        /* display: block; */
+        outline: 0;
+    }
+
+    .ui-autocomplete {
+        position: absolute;
+        top: 0;
+        left: 0;
+        cursor: default;
+        overflow-x: hidden;
+        overflow-y: auto;
+        height: 100px;
+        direction: rtl;
+    }
+    /*-----*/
+    /*Green Bar height*/
+    .nav-tabs > li {
+        float: left;
+        margin-bottom: -13px;
+    }
+    /*Green bar button*/
+    .btn.btn-sm, .btn-group-sm .btn, .navbar .navbar-nav > li > a.btn.btn-sm, .btn-group-sm .navbar .navbar-nav > li > a.btn {
+        padding: 3px 5px;
+        font-size: 11px;
+        margin-top: 5px;
+        margin-bottom: 19px;
+    }
+    /*for entry field*/
+    /*.form-group .form-control {
+            margin-bottom: 0px;
+        }*/
+    #pageDataDiv {
+        margin-top: inherit;
+        margin-left: inherit;
+        padding-right: 5px;
+    }
+
+    #dvImageLstMain {
+        margin-top: inherit;
+    }
+
+    #tableImagelst {
+        margin-top: inherit;
+    }
+
+    .form-control {
+        font-size: 17px !important;
+    }
+
+    .form-group {
+        padding-bottom: 0px !important;
+        margin: 6px 0 0 0 !important;
+    }
+
+    #resizeDiv {
+        /*margin-top: 10px;*/
+        width: 100%;
+        height: 100%;
+        /*border: 1px solid #000;*/
+        /*resize: vertical;*/
+        overflow-x: hidden;
+        overflow-y: auto;
+        /*background-color: #FAFAFA;*/
+        /*position: relative;
+            display: flex;*/
+        /*justify-content: center;*/
+        /*align-items: center;*/
+    }
+
+    #contentDiv {
+        overflow-y: auto;
+        padding: 0px 0px 0px 0px !important;
+    }
+
+
+    #mainDiv, #divimage {
+        padding: 0px 0px 0px 0px !important
+    }
+
+    .wrapper {
+        position: relative;
+        top: 10px !important;
+    }
+
+    .nav-tabs {
+        padding: 0px !important;
+    }
+
+        .nav-tabs > li > a {
+            line-height: 16px !important;
+        }
+
+        .nav-tabs > li.active > a {
+            background-color: #337ab7 !important;
+        }
+</style>
+<script>
+    var $demo;
+    var tablePD;
+    var allFocus = [];
+    var image_w;
+    var image_h;
+    var image_l;
+    var image_t;
+    var currentFieldSelected = '';
+    var currentImageText = '';
+    var selectedImgPageId;
+    var currentImageHref = '';
+    var curentImageRotation;
+    var closedFromViewer = false;
+    var MaleRelation = [];
+    var FemaleRelation = [];
+    var isloadingImage = false;
+    var prevImageRotation;
+    var isRotationSetInViewerReady = false;
+    $(window).resize(function () {
+        $('#image-viewer-demo').css('height', $(window).height() - 88);
+        $('#contentDiv').css('height', $(window).height() - (140 + 88));
+    });
+    $(document).ready(function () {
+        $('#image-viewer-demo').css('height', $(window).height() - 88);
+        $('#contentDiv').css('height', $(window).height() - (140 + 88));
+        //$('.image-holder').css('height','600px !important;');
+        $demo = $('#image-viewer-demo');
+        // Demonstrate events.
+        $demo.on('viewer:resized', function () {
+            console.log('Resized');
+        })
+            .on('viewer:ready', function (event, data) {
+                console.log('Ready');
+                image_w = data.width;
+                image_h = data.height;
+                image_l = data.left;
+                image_t = data.top;
+                //var dtid = currentDataID;
+                //var pgId = currentPageID;
+                //var txtid = currentField;
+                var imgStr = image_l + '|' + image_t + '|' + image_w + '|' + image_h;
+                var URL = "@Url.Action("GetFocusbox", "Audit")";
+                $.ajax({
+                    type: "POST",
+                    url: URL,
+                    data: { fileid: $('#spnFileId').html(), fileName: PreImage, currentImageSize: imgStr },
+                    success: function (data2) {
+                        try {
+                            isloadingImage = true;
+                            try {
+                                $demo.imageViewer('closeFocusBox', false);
+                            }
+                            catch (err1) {
+                                //alert('err1: '+ err1);
+                            }
+                            isRotationSetInViewerReady = false;
+                            $demo.imageViewer('setRotationAsZero');
+                            $demo.imageViewer('rotate', 0);
+                            $.each(data2, function (index, itemData) {
+                                if (itemData.coordinate_left === undefined) {
+                                    isloadingImage = false;
+                                }
+                                else {
+                                    try {
+                                        isloadingImage = true;
+                                        if ((itemData.image_rotation > 0 || itemData.image_rotation < 0) && isRotationSetInViewerReady == false) {
+                                            var rotationVal = itemData.image_rotation;
+                                            prevImageRotation = rotationVal;
+                                            //$demo.imageViewer('rotateCustom', rotationVal);
+                                            curentImageRotation = rotationVal;
+                                            isRotationSetInViewerReady = true;
+                                        }
+                                        $demo.imageViewer('addNewFocusBox', itemData.coordinate_left, itemData.coordinate_top, itemData.coordinate_width, itemData.coordinate_height, itemData.coordinate_id, itemData.color_code, itemData.image_rotation, false, true);
+                                    }
+                                    catch (err2) {
+                                        //alert('index no: ' + index + 'err2: ' + err2);
+                                        $demo.imageViewer('addNewFocusBox', itemData.coordinate_left, itemData.coordinate_top, itemData.coordinate_width, itemData.coordinate_height, itemData.coordinate_id, itemData.color_code, itemData.image_rotation, false, true);
+                                    }
+
+                                }
+                            });
+                            $demo.imageViewer('rotateAllFocusBox');
+                            isloadingImage = false;
+                            if (data2 == 'error') {
+                                $demo.imageViewer('changeFocusMood', true);
+                                $demo.imageViewer('focus', false);
+                            }
+                        }
+                        catch (err3) {
+                            isloadingImage = false;
+                            if (data2 == 'error') {
+                                $demo.imageViewer('changeFocusMood', true);
+                                $demo.imageViewer('focus', false);
+                            }
+                            //alert('err3 '+err3);
+                        }
+                    },
+                    error: function (request, status, error) {
+                        alert(request.responseText);
+                    }
+                });
+            })
+            .on('viewer:zoomed', function (event, data) {
+                console.log('Zoomed: w:' + data.width + ' h:' + data.height + ' l:' + data.left + ' t:' + data.top);
+                image_w = data.width;
+                image_h = data.height;
+                image_l = data.left;
+                image_t = data.top;
+            })
+            .on('viewer:moved', function (event, data) {
+                console.log('Moved l:' + data.left + ' t:' + data.top);
+                image_w = data.width;
+                image_h = data.height;
+                image_l = data.left;
+                image_t = data.top;
+            })
+            .on('viewer:rotated', function (event, data) {
+                console.log('Rotated: ' + data.rotation);
+                image_w = data.width;
+                image_h = data.height;
+                image_l = data.left;
+                image_t = data.top;
+
+                curentImageRotation = data.rotation;
+                //if (prevImageRotation > 0 || prevImageRotation < 0) {
+                //    curentImageRotation = prevImageRotation;
+                //}
+            })
+            //.on('viewer:changed', function (event, data) {
+            //    console.log(data);
+            //})
+            .on('controls:toggled', function (event, showing) {
+                console.log('Toggled: ' + (showing ? 'showing' : 'hiding'));
+            })
+
+            .on('focus:moved', function (event, data) {
+                console.log('Focus moved: w:' + data.width + ' h:' + data.height + ' l:' + data.left + ' t:' + data.top);
+                //var dtid = currentDataID;
+                //var pgId = currentPageID;
+                //var txtid = currentField;
+
+                var cordinatestr = data.left + '|' + data.top + '|' + data.width + '|' + data.height + '|' + image_l + '|' + image_t + '|' + image_w + '|' + image_h + '|' + curentImageRotation + '|' + activeFocusdata;
+                var cordinateid = data.focus_id;
+                var URL = "@Url.Action("UpdateFocusbox", "Audit")";
+                $.ajax({
+                    type: "POST",
+                    url: URL, // Don't know asp/asp.net at all so you will have to do this bit
+                    data: { focusid: cordinateid, cordinate: cordinatestr },
+                    success: function (data2) {
+                        res = data2;
+                        //NotificationFunctions(res,'updatefocus');
+                    }
+                });
+
+            })
+            .on('focus:created', function (event, data) {
+                console.log('Focus created: w:' + data.width + ' h:' + data.height + ' l:' + data.left + ' t:' + data.top);
+                if (!isloadingImage) {
+                    //var dtid = currentDataID;
+                    //var pgId = currentPageID;
+                    //var txtid = currentField;
+                    var cordinatestr = data.left + '|' + data.top + '|' + data.width + '|' + data.height + '|' + image_l + '|' + image_t + '|' + image_w + '|' + image_h + '|' + curentImageRotation + '|' + imgOrginalSize + '|' + selectedColorCode;
+                    var URL = "@Url.Action("CreateFocusbox", "Audit")";
+                    $.ajax({
+                        type: "POST",
+                        url: URL,
+                        data: { fileid: $('#spnFileId').html(), fileName: PreImage, cordinate: cordinatestr },
+                        success: function (data2) {
+                            res = data2;
+                            if (res != 'error') {
+                                $demo.imageViewer('updateCurentFocusBoxId', res);
+                                //NotificationFunctions('success', 'createfocus');
+                                $demo.imageViewer('reCalFocusBaseOnFitZoomImage');
+                            }
+                            else {
+                                NotificationFunctions('error', 'createfocus');
+                            }
+                        }
+                    });
+                }
+                else {
+                    isloadingImage = false;
+                }
+            })
+            .on('focus:deleted', function (event, data) {
+                console.log('Focus deleted');
+                //var dtid = currentDataID;
+                //var pgId = currentPageID;
+                //var txtid = currentField;
+                if (!isloadingImage) {
+                    var cordinateid = data.focus_id;
+                    var URL = "@Url.Action("DeleteFocusbox", "Audit")";
+                    $.ajax({
+                        type: "POST",
+                        url: URL,
+                        data: { focusid: cordinateid },
+                        success: function (data2) {
+                            res = data2;
+                            //NotificationFunctions(res, 'deletefocus');
+                        }
+                    });
+                }
+            })
+            .on('focus:On', function () {
+                console.log('Focus on');
+                $('.image').css('cursor', 'default');
+            })
+            .on('focus:Off', function () {
+                console.log('Focus off');
+                $('.image').css('cursor', 'grab');
+            });
+
+        var fieldNametr = '';
+        // register jQuery extension
+        jQuery.extend(jQuery.expr[':'], {
+            focusable: function (el, index, selector) {
+                return $(el).is('button, :input, [tabindex]');
+            }
+        });
+        $(document).on('click', 'input,select', function (e) {
+            currentFieldSelected = $(this).attr('id');
+            //loadFocusBox();
+            fieldNametr = $(this).attr('id');
+        });
+        $(document).on('keydown', 'input,select', function (e) {
+            currentFieldSelected = $(this).attr('id');
+            if (e.shiftKey && e.which == 9) {
+                var $canfocus = $(':focusable');
+                var index = $canfocus.index(document.activeElement) - 1;
+                if (index < 0) index = 0;
+                fieldNametr = $canfocus.eq(index).attr('id');
+            }
+            if ((e.altKey && e.which == 79) || (e.altKey && e.which == 18)) {
+                var $canfocus = $(':focusable');
+                var index = $canfocus.index(document.activeElement) - 1;
+                if (index < 0) index = 0;
+                fieldNametr = $canfocus.eq(index).attr('id');
+                $demo.imageViewer('focus', true);
+                setTimeout(function () {
+                    //$('#resizeDiv').scrollTop($('#resizeDiv')[0].scrollHeight);
+                    var container = $('#resizeDiv');
+                    container.scrollTop(
+                        //objtr.offset().top - container.offset().top + container.scrollTop()
+                        $('#resizeDiv')[0].scrollHeight
+                    );
+                }, 300);
+            }
+            if (e.ctrlKey && e.which == 72) {
+                var $canfocus = $(':focusable');
+                var index = $canfocus.index(document.activeElement) - 1;
+                if (index < 0) index = 0;
+                fieldNametr = $canfocus.eq(index).attr('id');
+                $demo.imageViewer('focus', true);
+                setTimeout(function () {
+                    //$('#resizeDiv').scrollTop($('#resizeDiv')[0].scrollHeight);
+                    var container = $('#resizeDiv');
+                    container.scrollTop(
+                        //objtr.offset().top - container.offset().top + container.scrollTop()
+                        $('#resizeDiv')[0].scrollHeight
+                    );
+                }, 300);
+
+            }
+        });
+
+        $(document).on('keypress', 'input,select', function (e) {
+            if (e.which == 13) {
+                e.preventDefault();
+                var iname = $(this).val();
+                if (iname !== 'Submit') {
+                    // Get all focusable elements on the page
+                    var $canfocus = $(':focusable');
+                    var index = $canfocus.index(document.activeElement) + 1;
+                    if (index >= $canfocus.length) index = 0;
+
+
+                    $canfocus.eq(index).focus();
+
+                    fieldNametr = $canfocus.eq(index).attr('id');
+                    currentFieldSelected = fieldNametr;
+                    //loadFocusBox();
+                }
+            }
+
+        });
+        $(document).keypress(function (e) {
+            if (e.altKey) {
+                if (e.which == 115 && e.altKey) {
+                    e.preventDefault();
+                    //$('#btnSave').focus();
+                    SetSavebuttonFocus();
+                    $('#btnSave').click();
+                }
+            }
+
+        });
+        $(document).keydown(function (e) {
+            if (e.altKey) {
+                if ((e.which == 115 && e.altKey) || (e.which == 83 && e.altKey)) {
+                    e.preventDefault();
+                    //$('#btnSave').focus();
+                    SetSavebuttonFocus();
+                    $('#btnSave').click();
+                }
+            }
+        });
+
+    });     // document Ready
+
+    function showUrlOnImageViewer(url){
+        $demo.imageViewer({
+            images: [url, 'https://via.placeholder.com/500', 'https://placehold.it/500x1000'],
+        });
+        curentImageRotation = 0;
+        $("div#divimage").show();
+    }
+
+    var PreImage = "";
+    var GetSignedURLByImageInfoxhr;
+    var ExternalImageLoadAbortController;
+    function loadImage(imgFind) {
+        var loadImage = $('#ddlImage').val();
+        if (imgFind != undefined && imgFind != '')
+            loadImage = imgFind;
+
+        if (PreImage != loadImage) {
+            try{GetSignedURLByImageInfoxhr.abort()}catch(e){}
+            try{ExternalImageLoadAbortController.abort()}catch(e){}
+
+            PreImage = loadImage;
+            var URL = "@Url.Action("GetSignedURLByImageInfo", "Audit")";
+            GetSignedURLByImageInfoxhr = $.ajax({
+                type: "POST",
+                url: URL, // Don't know asp/asp.net at all so you will have to do this bit
+                data: { fileId: $('#spnFileId').html(), imgId: PreImage },
+                success: function (data) {
+
+                    //if (prevImageRotation > 0 || prevImageRotation < 0) {
+                    //    if (prevImageRotation > 0) {
+                    //        $demo.imageViewer('rotate', -(prevImageRotation));
+                    //    }
+                    //    if (prevImageRotation < 0) {
+                    //        var posVal = Math.abs(prevImageRotation)
+                    //        $demo.imageViewer('rotate', posVal);
+                    //    }
+                    //    prevImageRotation = 0;
+                    //}
+                    if (data.includes("gik=")) {
+                        ExternalImageLoadAbortController = new AbortController();
+                        fetch(data, {signal: ExternalImageLoadAbortController.signal})
+                            .then(response => {
+                                if (!response.ok) {
+                                    showUrlOnImageViewer("");
+                                }
+                                return response.json();
+                            })
+                            .then(jsonResponse => {
+                                let data = "data:image/jpeg;base64," + jsonResponse.result.data;
+                                showUrlOnImageViewer(data);
+                            })
+                            .catch(error => showUrlOnImageViewer(""));
+                    }
+                    else{
+                        showUrlOnImageViewer(data);
+                    }
+                }
+            });
+        }
+    }
+
+
+
+    function loadFocusBox() {
+        closedFromViewer = true;
+        $demo.imageViewer('closeFocusBox', 0);
+
+        allFocus.forEach(function (e) {
+            var arr = e.split('|');
+
+            var imgStr = image_l + '|' + image_t + '|' + image_w + '|' + image_h;
+            var URL = "@Url.Action("GetEntryFocusbox", "DataEntry")";
+            $.ajax({
+                type: "POST",
+                url: URL, // Don't know asp/asp.net at all so you will have to do this bit
+                data: { focus: e, currentImageSize: imgStr },
+                success: function (data2) {
+                    closedFromViewer = true;
+                    $demo.imageViewer('closeFocusBox', true);
+                    if (data2.coordinate_left === undefined) {
+
+                    }
+                    else {
+                        $demo.imageViewer('addNewFocusBox', data2.coordinate_left, data2.coordinate_top, data2.coordinate_width, data2.coordinate_height, false, true);
+                    }
+                }
+            });
+            //$demo.imageViewer('addNewFocusBox', arr[3], arr[4], arr[5], arr[6], false, true);
+
+        });
+
+    }
+
+
+
+
+
+
+</script>
+
+<div class="header">
+</div>
+
+<div class="main main-raised">
+
+    <div id="mainDiv" class="col-md-12">
+        <div id="resizeDiv">
+            <div id="divimage" class="col-md-8" style="display:inline-block;">
+                <button id="colorPicked1" class="pull-right" data-jscolor="{
+                    preset:'light small thin',
+                    closeButton:true, closeText:'Close',
+			    onChange: 'updateColorPicker(this)',
+			    @*onInput: 'updateColorPicker(this, \'#pr2\')',*@
+			    value:'3E85FE'}">
+                </button>
+                <div id="image-viewer-demo" style="vertical-align: middle;"></div>
+
+            </div>
+
+            <div id="pageDataDiv" class="col-md-4">
+                <div id="mainTabDiv" class="card card-nav-tabs">
+                    @{
+                        <partial name="FieldRelation"></partial>
+                        //Html.RenderPartial("FieldRelation");
+                    }
+                </div>
+
+                @*</div>*@
+            </div>
+
+        </div>
+        <div class="clearfix"></div>
+        <div class="separator"></div>
+        @*<div class="separator-line"></div>*@
+    </div>
+
+
+
+</div>
+
+

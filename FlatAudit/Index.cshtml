@@ -1,0 +1,525 @@
+﻿
+@{
+    ViewBag.Title = "Audit Status & Details";
+}
+
+<style type="text/css">
+    a.btn {
+        margin: 0 !important;
+    }
+    #tblSettings tr{
+        height:40px;
+    }
+        #tblSettings tr td:first-child{
+            padding-left:10px;
+        }
+        #tblSettings tr td:last-child {
+            padding-left: 10px;
+        }
+        .btn.btn-sm {
+            padding: 2px 4px !important;
+            margin: 0 !important;
+        }
+    /* The slider itself */
+    .slider {
+        -webkit-appearance: none; /* Override default CSS styles */
+        appearance: none;
+        width: 100%; /* Full-width */
+        height: 15px; /* Specified height */
+        border-radius: 5px;
+        background: #d3d3d3; /* Grey background */
+        outline: none; /* Remove outline */
+        opacity: 0.7; /* Set transparency (for mouse-over effects on hover) */
+        -webkit-transition: .2s; /* 0.2 seconds transition on hover */
+        transition: opacity .2s;
+    }
+
+        /* Mouse-over effects */
+        .slider:hover {
+            opacity: 1; /* Fully shown on mouse-over */
+        }
+
+        /* The slider handle (use -webkit- (Chrome, Opera, Safari, Edge) and -moz- (Firefox) to override default look) */
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none; /* Override default look */
+            appearance: none;
+            width: 25px; /* Set a specific slider handle width */
+            height: 25px; /* Slider handle height */
+            border-radius: 50%;
+            background: #4CAF50; /* Green background */
+            cursor: pointer; /* Cursor on hover */
+        }
+
+        .slider::-moz-range-thumb {
+            width: 25px; /* Set a specific slider handle width */
+            height: 25px; /* Slider handle height */
+            border-radius: 50%;
+            background: #4CAF50; /* Green background */
+            cursor: pointer; /* Cursor on hover */
+        }
+</style>
+
+<script>
+    var editor; // use a global for the submit and return data rendering in the examples
+    var table;
+    $(document).ready(function () {
+        $('#ddlVendor').on("change", function () { LoadJSONFileGrid(); });
+        // Setup - add a text input to each footer cell
+        //$('#example tfoot th').each(function () {
+        //    var title = $(this).text();
+        //    $(this).html('<input type="text" placeholder="Search ' + title + '" />');
+        //});
+        $("#divLoading").hide();
+        LoadJSONFileGrid();
+        // Apply the search
+        //table.columns().every(function (colIdx) {
+        //    var that = this;
+
+        //    $('input', this.column(colIdx).footer()).on('keyup change', function () {
+        //        if (that.search() !== this.value) {
+        //            that
+        //                .column(colIdx)
+        //                .search(this.value)
+        //                .draw();
+        //        }
+        //    });
+        //});
+
+    });
+
+    function LoadJSONFileGrid() {
+
+        var URL = "@Url.Action("GetAuditFiles", "FlatAudit")";
+        table = $('#tblGroupTitles').DataTable({
+            "scrollY": ($('.section').height() - 80),
+            "scrollX": true,
+            //"scrollCollapse": true,
+            "processing": true,
+            "serverSide": true,
+            "ordering": true,
+            "autoWidth": false,
+            destroy: true,
+            //paging: true,
+            "dom": 'tr',
+            "ajax": {
+                "url": URL,
+                "type": "POST",
+                "dataType": "JSON",
+                "data": { vendor: $("#ddlVendor option:selected").val() }
+            },
+            "columns": [
+                //{ "data": "FileID", title: "FileID",  width: 150 },
+                { "data": "GroupName", title:"Group Name" },
+                //{ "data": "Identifier", "orderable": false },
+
+                { "data": "Personas", title: "Records" },
+                { "data": "Sources", title: "Images" },
+                { "data": "Relations", title: "Files" },
+                //{ "data": "AuditCompleted", },
+                //{ "data": "CompletedOn", "orderable": false },
+                //{ "data": "FieldAudit", title: "FieldAudit", "orderable": false },
+                //{ "data": "ViewRelation", title: "Relations", "orderable": false },
+                { "data": "FieldRelation", title: "Audit Records", "orderable": false },
+                { "data": "Detail", title: "Detail", "orderable": false }
+                 @if (User.IsInRole("Admin"))
+                 {
+                    <text>
+                    //,{ "data": "Action", title: "Action", "orderable": false },
+                    ,{ "data": "Config", title: "Sampling", "orderable": false }
+                 </text>
+                 }
+                ,{
+                    title: "Remove",
+                    "orderable": false,
+                    render: function (data, type, row) {
+                        return '<input type="checkbox" class="Remove">';
+                    }
+                }
+            ],
+            columnDefs: [
+                {
+                    targets: -1,
+                    className: 'dt-body-center'
+                }
+            ],
+            rowCallback: function (row, data) {
+                $("input.Remove", row).on('click', function (e) {
+                    if ($("input.Remove", row).is(':checked')) {
+                        GroupArray.push(data.GroupId);
+                    }
+                    else {
+                        GroupArray.splice($.inArray(data.GroupId, GroupArray), 1);
+                    }
+                    //alert(JSON.stringify(GroupArray));
+
+                });
+
+            }
+        });
+    }
+    var GroupArray = [];
+    function ViewSampling(GroupID) {
+        var URL = "@Url.Action("GetSamplingDetail", "FlatAudit", new { @grpId = "-1"})";
+        URL = URL.replace("-1", GroupID);
+        $.ajax({
+            type: "GET",
+            url: URL,
+            //data: {},
+            dataType: "json" ,
+            //contentType: 'application/json; charset=utf-8',
+            success: function (result) {
+                //$('#chkTotal').prop('checked', false);
+                if (result.success) {
+                    $('#spnTitle').html(result.data.TitleSampled);
+                    $('#spnImage').html(result.data.imgSampled);
+                    $('#spnPersona').html(result.data.perSampled);
+                    $('#totalRecords').html(result.data.totalRecords);
+
+                    $('#errMsg').html(result.data.errMsg);
+
+                    $("#PersonaRange").val(result.data.perReq);
+                    $("#PersonaSelected").html(result.data.perReq);
+                }
+
+            },
+            error: function () {
+                alert("Error occured!!")
+            }
+        });
+    }
+
+    function DoFileSampling(GroupID,TitleCount,GroupName) {
+        $('#GroupNameSample').html(GroupName);
+        $('#spnMax').html(TitleCount);
+        $('#btnSample').off("click");
+        //$('#btnSample').on("click", function () { SaveSampling(GroupID); })
+        $('#btnSample').on("click", function () { SaveParameters(GroupID); })
+        ViewSampling(GroupID);
+    }
+
+    function DoSampleDefault() {
+        //$('#ddlLevel').val('1.96');
+    }
+
+    function DeleteFile() {
+        if (GroupArray.length == 0) {
+            NotificationFunctions('Please select checkbox for groups to remove.');
+        }
+        else {
+            $('#ModalDelete').modal('show');
+            $('#anchorDelete').attr("href", '/Audit/DeleteFile/' + GroupArray);
+        }
+
+
+        //$('#anchorDelete').off("click");
+        //$('#anchorDelete').on("click", function () { $("#divLoading").show();})
+    }
+
+    function ViewSampleScore() {
+        $('#SpnScore').html($('#ddlLevel').val());
+    }
+
+    function SaveParameters(GroupID) {
+        var URL = "@Url.Action("SaveSamplingParams", "FlatAudit")";
+        $('#errMsg').html('');
+        $("#divLoading").show();
+        //$('#spnProgmsg').show();
+        let perReq = $("#PersonaSelected").html().split(" ")[0]
+        $.post(URL, { GrpId: GroupID, PerReq: perReq },
+            function (res) {
+                if (res.isSuccess) {
+                    NotificationFunctions('Parameters saved for offline sampling process.');
+                    $('#errMsg').html('Parameters saved for offline sampling.');
+                @*ViewSampling(GroupID);
+                var URL = "@Url.Action("GetAuditFiles", "Audit")";
+                table.ajax.url(URL).load();*@
+            }
+            else {
+                    NotificationFunctions('Some error occured.');
+                    $('#errMsg').html(res.errmsg);
+            }
+            $("#divLoading").hide();
+            //$('#spnProgmsg').hide();
+        });
+
+    }
+
+    function SaveSampling(GroupID) {
+        var URL = "@Url.Action("SaveSampling", "FlatAudit")";
+        $('#errMsg').html('');
+        $("#divLoading").show();
+        $('#spnProgmsg').show();
+        $.post(URL, { GrpId: GroupID, total: $('#spnMax').html(), desiredTitleCount: $('#demo').html(), ImgReq: $("#ImgSelected").html(), PerReq: $("#PersonaSelected").html() },
+            function (res) {
+                if (res.isSuccess) {
+                NotificationFunctions('Sampling save successfully for file.');
+                ViewSampling(GroupID);
+                var URL = "@Url.Action("GetAuditFiles", "FlatAudit")";
+                table.ajax.url(URL).load();
+            }
+            else {
+                    NotificationFunctions('Error occured in sampling process.');
+                    $('#errMsg').html(res.errmsg);
+            }
+            $("#divLoading").hide();
+            $('#spnProgmsg').hide();
+        });
+
+    }
+
+    function GetGroupDetails(groupId, groupName) {
+        $('#GroupNameDetail').html("[" + groupName + "]");
+        $('#tblGroupDetail').DataTable({
+            //"paging": true,
+            "scrollY": 300,
+            "scrollX": true,
+            destroy: true,
+            "scrollCollapse": true,
+            "autoWidth": false,
+            //"proccessing": true,
+            "serverSide": true,
+            "ordering": true,
+            "dom": 'tr',
+            //"lengthMenu": [[1000, 2000], [1000, 2000]],
+            "ajax": {
+                "url": "/Audit/GetGroupDetail/",
+                "type": "POST",
+                "dataType": "JSON",
+                "data": { GID: groupId }
+            },
+            //"order": [],
+            "columns": [
+                {
+                    "data": null, title:"Sno", "orderable": false, width: 50,
+                    render: function (data, type, row, meta) {
+                        return meta.row + meta.settings._iDisplayStart + 1;
+                    }
+                },
+                { "data": "FileId", title: "FileID" },
+                { "data": "Title", title: "Title", "orderable": false },
+                { "data": "Personas", title: "Personas" },
+                { "data": "Sources", title: "Sources" },
+                { "data": "Relationships", title: "Relationships" },
+                //{ "data": "isSampled", title: "Sampled" },
+            ]
+
+        });
+
+    }
+    var fieldtable;
+    function GetGroupSummaryDetails(groupId,groupName) {
+        $('#GroupNameSummary').html("[" + groupName + "]");
+        $('.exportGroupId').val(groupId);
+        if (fieldtable != undefined) {
+            fieldtable.destroy();
+            fieldtable.clear();
+            $('#tblFileSummaryDetail').empty();
+        }
+
+        fieldtable = $('#tblFileSummaryDetail').DataTable({
+            //"paging": true,
+            //"scrollY": "400px",
+            "dom": 'rt',
+            destroy: true,
+            //"scrollCollapse": true,
+            "autoWidth": false,
+            "proccessing": true,
+            "serverSide": true,
+            //"lengthMenu": [[1000, 2000], [1000, 2000]],
+            "ajax": {
+                "url": "/FlatAudit/GetFileSummaryDetail/",
+                "type": "POST",
+                "dataType": "JSON",
+                "data": { GID: groupId }
+            },
+            ordering: false,
+            "columns": [
+                //{
+                //    "data": null, "orderable": false, width: '50px',
+                //    render: function (data, type, row, meta) {
+                //        return meta.row + meta.settings._iDisplayStart + 1;
+                //    }
+                //},
+                { "data": "Category", title: "Category" },
+                { "data": "Sampled", title:"Sampled" },
+                { "data": "Audited", title: "Audited" },
+                { "data": "Valid", title: "Valid" },
+                { "data": "Invalid", title: "Invalid" },
+                { "data": "Pending", title: "Pending" }
+            ]
+
+        });
+
+    }
+
+</script>
+<style type="text/css">
+    .modal-content {
+        width: 700px;
+    }
+</style>
+<div class="header">
+
+</div>
+
+<div class="main main-raised">
+    <div class="section">
+        <div class="container">
+            <div class="row ">
+                
+                    <div class="col-md-3 alignleft">
+                        @Html.DropDownList("ddlVendor", new SelectList(ViewBag.VendorList), htmlAttributes: new { @class = "select2_single form-control" })
+                    </div>
+                    <div class="col-md-8 ">
+                        <br />
+                        <button class="pull-right btn btn-danger btn-sm" onclick="DeleteFile();"><i class="fa fa-trash"></i> Remove Group(s)</button>
+                    </div>
+                    <div class="clearfix"></div>
+                    <div class="separator"></div>
+                    <div class="col-md-11">
+                        <table id="tblGroupTitles" class="compact table-striped table-bordered hover nowrap" cellspacing="0"></table>
+                    </div>
+               
+            </div>
+            </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="ModalSampling" data-backdrop="static" data-keyboard="false" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+                    <i class="material-icons">clear</i>
+                </button>
+                <h4 class="modal-title">Sampling for: <strong id="GroupNameSample"></strong> </h4>
+            </div>
+            <div class="modal-body" style="font-size:15px;">
+                <table style="width:100%" id="tblSettings" >
+                    <tr>
+                        <td width="140px">Total Files: </td>
+                        <td><span id="spnMax" style="font-weight:bold"></span></td>
+                        <td width="120px"></td>
+                    </tr>
+                    <tr>
+                        <td width="140px">Total Records: </td>
+                        <td><span id="totalRecords" style="font-weight:bold"></span></td>
+                        <td width="120px"></td>
+                    </tr>
+                    <tr>
+                        <td>Sampled Detail: </td>
+                        <td>
+                            Files:  <span id="spnTitle" style="font-weight:bold"></span>  ||  Images:  <span id="spnImage" style="font-weight:bold"></span> -  Records:  <span id="spnPersona" style="font-weight:bold"></span>
+                        </td>
+                        <td></td>
+                    </tr>
+
+                    <tr style="background-color:whitesmoke;">
+                        <td>Records: </td>
+                        <td><input type="range" class="slider" min="0" max="100" value="40" step="1" id="PersonaRange"></td>
+                        <td><span id="PersonaSelected" style="font-weight:bold"></span></td>
+                    </tr>
+                </table>
+                
+            </div>
+            <div class="modal-footer">
+                @*<input type="checkbox" id="chkTotal" /> <span style="padding-right: 20px; font-weight: bold;">Audit All Records</span>*@
+                <span id="spnProgmsg" style=" padding-right:20px; display:none; color:red; font-size:15px; font-weight:bold; ">Doing Sampling. Please wait... </span>
+                <span id="errMsg" style=" padding-right:20px; color:red; font-size:15px; font-weight:bold; "></span>
+                @*<button type="button" class="btn btn-default" data-dismiss="modal"><i class="fa fa-close"></i> Close</button>*@
+                @*<button id="btnSample" type="button" class="btn btn-primary btn-bg">Save Sampling</button>*@
+                <button id="btnSample" type="button" class="btn btn-primary btn-sm">Save Parameters</button>&nbsp; &nbsp;
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="ModalGroupDetails" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+                    <i class="material-icons">clear</i>
+                </button>
+                <h4 class="modal-title">Title Detail: <strong id="GroupNameDetail"></strong> </h4>
+            </div>
+            <div class="modal-body">
+                <table id="tblGroupDetail" class="compact table-striped table-bordered hover nowrap" cellspacing="0">
+                    
+                </table>
+            </div>
+            <div class="modal-footer">
+                @*<button type="button" class="btn btn-default" data-dismiss="modal"><i class="fa fa-close"></i> Close</button>*@
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="ModalFileDetails" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+                    <i class="material-icons">clear</i>
+                </button>
+                <h4 class="modal-title">Audit Summary: <strong id="GroupNameSummary"></strong> </h4>
+                @if(User.IsInRole("Admin") || User.IsInRole("Analysis Group"))
+                {
+                    <form action="/Report/GenerateFlatFileExport" method="get">
+                        <input type="hidden" name="groupId" class="exportGroupId">
+                        <button type="submit">Export Data</button>
+                    </form>
+                }
+            </div>
+            <div class="modal-body">
+                <table id="tblFileSummaryDetail" class="compact table-striped table-bordered hover nowrap" cellspacing="0" width="100%">
+                    
+                </table>
+
+            </div>
+            <div class="modal-footer">
+                @*<button type="button" class="btn btn-default" data-dismiss="modal"><i class="fa fa-close"></i> Close</button>*@
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade in" id="ModalDelete" data-backdrop="static" data-keyboard="false" tabindex="-1" role="dialog" >
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+                    <i class="material-icons">clear</i>
+                </button>
+                <h4 class="modal-title">Confirmation</h4>
+            </div>
+            <div class="modal-body">
+
+                <p>Are you sure you want to delete JSON file? Data will lost without storing information.</p>
+                <p>To continue press button. <b> Wait till page refreshed</b></p>
+            </div>
+            <div class="modal-footer">
+                @*<button type="button" class="btn btn-default" data-dismiss="modal"><i class="fa fa-close"></i> Close</button>*@
+                <a id="anchorDelete" class='btn btn-sm btn-danger' onclick="$(this).hide()" href='#'><i class='fa fa-trash'></i> Delete</a>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="divLoading" style="margin: 0px; padding: 0px; position: fixed; right: 0px;
+    top: 0px; width: 100%; height: 100%; z-index: 30001;
+    opacity: .8; filter: alpha(opacity=80);">
+    <img src="./Loading2.gif" title="Waiting for data processing" style="position: absolute; top: 40%; left: 45%;" />
+    @*<p style="position: absolute; top: 30%; left: 45%;">
+        <span style="font-size:20px;color:#000000; "><b>Importing project images, please wait...</b></span>
+    </p>*@
+</div>
+<script type="text/javascript">
+    $('#PersonaSelected').html($("#PersonaRange").val());
+    $(document).on('input', '#PersonaRange', function () {
+        let percentage = parseFloat($(this).val());
+        let total = parseFloat(document.querySelector("#totalRecords").innerText)
+        let targetSampledRecords = Math.round((total / 100) * percentage);
+        $('#PersonaSelected').html(`${percentage} % ( ${targetSampledRecords} )`);
+    });
+</script>

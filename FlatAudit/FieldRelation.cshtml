@@ -1,0 +1,171 @@
+﻿@model JP_Model.AuditFieldRelation
+@using JP_Model;
+@using JiapuAuditWeb.NewHelpers;
+
+<script>
+    $(document).ready(function () {
+        LoadOnPageChange();
+    });
+
+    function LoadOnPageChange(){
+        // for GEDCOMX audit, this function is in RelationContent.cshtml
+        loadImage();
+    }
+
+    function ValidRecNo(obj) {
+        var $field = $(obj),
+            val = obj.value;
+        if (val.length > Number($field.attr("maxlength"))) {
+            val = val.slice(0, 4);
+            $field.val(val);
+        }
+    }
+    function OnPageChanged() {
+        $('#contentDiv').css('height', $(window).height() - (140 + 88));
+        //alert('Page changed.');
+        LoadOnPageChange();
+        //alert($(window).height() - (140 + 88));
+        jscolor.install(); // to immediately install pickers on elements with data-jscolor
+        //document.querySelector('#colorPicked1').jscolor.show();
+    }
+    function GoRecord() {
+        if ($('#GoRecord').val().trim() == '' || Number($('#GoRecord').val().trim()<=0)) {
+            NotificationFunctions('Please enter number value upto 3 digits.');
+            return;
+        }
+        if (Number($('#GoRecord').val().trim() >@Model.Total)) {
+            NotificationFunctions('Can not exceed total record count.');
+            return;
+        }
+        Url = "@Html.Raw(Url.Action("NavigateFieldRelation", "FlatAudit", new { grpId = ViewBag.grpId, idx = "replace" }))";
+        Url = Url.replace("replace", $('#GoRecord').val());
+        $('#mainTabDiv').load(Url, function () { OnPageChanged(); });
+    }
+    function LoadRecordView(dataUrl) {
+        $.ajax({
+            url: dataUrl,
+            contentType: 'application/html; charset=utf-8',
+            type: 'GET',
+            datatype: 'html'
+        })
+            .success(function (result) {
+                $('#mainTabDiv').html(result);
+                loadImage();
+            })
+            .error(function (xhr, status) {
+                alert(status);
+            })
+    }
+
+    function FindImage(e) {
+        var keycode = (e.keyCode ? e.keyCode : e.which);
+        if (keycode == '13') {
+            loadImage($('#txtImgFind').val().trim());
+        }
+    }
+
+    function clickGo(e) {
+        var keycode = (e.keyCode ? e.keyCode : e.which);
+        if (keycode == '13') {
+            GoRecord();
+        }
+    }
+    function NumberOnly(e) {
+        var keyCode = (e.keyCode ? e.keyCode : e.which);
+        if (!(keyCode >= 48 && keyCode <= 57)) {
+            return false;
+        }
+    }
+
+    function NextRecord() {
+        Url = "@Html.Raw(Url.Action("NavigateFieldRelation", "FlatAudit", new { @grpId = ViewBag.grpId, isNext = true, @idx = Model.RecordNo + 1 }))";
+
+        if ($('#btnNext').is(':disabled'))
+            Url = "@Html.Raw(Url.Action("NavigateFieldRelation", "FlatAudit", new { @grpId = ViewBag.grpId, @idx = Model.RecordNo }))";
+
+        $('#mainTabDiv').load(Url, function () { OnPageChanged(); });
+    }
+     function PreRecord() {
+         Url="@Html.Raw(Url.Action("NavigateFieldRelation", "FlatAudit", new { @grpId = ViewBag.grpId, @idx = Model.RecordNo - 1 }))";
+         $('#mainTabDiv').load(Url, function () { OnPageChanged(); });
+    }
+    function copyToClipboard(element,type) {
+        var $temp = $("<input>");
+        $("body").append($temp);
+        $temp.val(type == 'spn' ? $(element).text() : $(element).val().replace('.jpg','')).select();
+        document.execCommand("copy");
+        $temp.remove();
+        NotificationFunctions("Text copied to clipboard");
+    }
+    function SubmitFieldRelation() {
+        if (SubmitField() == true) {
+            NextRecord();
+        }
+    }
+</script>
+
+<div class="header-info" style="padding: 5px 0px 0px 5px !important;">
+    <!-- colors: "header-primary", "header-info", "header-success", "header-warning", "header-danger" -->
+    <div>
+        <i title="Click to copy FileId" onclick="copyToClipboard('#spnFileId','spn')" class="fa fa-copy"></i> <span title="Viewing FileId" style="font-family: Arial; color:gold; font-size:15px; " id="spnFileId">@ViewBag.FileID</span> <i title="Click to copy PID" onclick="copyToClipboard('#spnPId','spn')" class="fa fa-copy"></i> <span title="Viewing PID" style="font-family: Arial; color:gold; font-size:15px; " id="spnPId">@Model.fieldAudit.PId</span>
+    </div>
+
+    <div class="separator-line"></div>
+    <div>
+        <i title="Click to copy ImageId" onclick="copyToClipboard('#ddlImage','ddl')" class="fa fa-copy"></i>
+        @Html.DropDownList("ddlImage", new SelectList(Model.fieldAudit.Sources), htmlAttributes: new { @class = "select2_single", @style = "color:Black", @required = "required", @onchange = "loadImage()" })
+        <strong>(@Model.fieldAudit.Sources.Count)</strong>
+        @Html.TextBox("txtImgFind", "", new { @type = "text", @placeholder = "Find image in title...", @onkeydown = "FindImage(event)", @style = "width:140px; color:Black" })
+        <button id="btnSave" type="button" class="btn btn-primary btn-sm" style="margin-bottom:0px; margin-top:0px !important;@(ViewBag.isDisable ?? false ? "display:none" : "")" onclick="SubmitFieldRelation();">Submit</button>
+    </div>
+    <div class="header-primary" style="padding: 5px 0px 15px 0px !important;margin-top:0px;">
+        <div class="nav-tabs-navigation header-primary">
+            <div id="tabsDiv" class="nav-tabs-wrapper">
+                <ul class="nav nav-tabs" data-tabs="tabs">
+                    <li class="active">
+                        <a href="#relation" data-toggle="tab">
+                            @*<i class="material-icons">face</i>*@
+                            Field Detail
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="contentDiv" class="content">
+    @*@Html.Hidden("allCreatedFocus")*@
+    <div class="tab-content">
+        <div class="tab-pane active" id="relation">
+            <div class="clearfix"></div>
+            <div class="separator-line"></div>
+            <div id="relationContent">
+                @{Html.RenderPartial("FieldContent", Model.fieldAudit);}
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="header header-info" style="padding:0px; margin-bottom: 0px; @(ViewBag.isDisable??false? "display:none" : "")">
+    <!-- colors: "header-primary", "header-info", "header-success", "header-warning", "header-danger" -->
+    <div class="nav-tabs-navigation">
+        <div id="tabsDiv" class="nav-tabs-wrapper">
+            <ul class="nav nav-tabs" data-tabs="tabs">
+                <li class="pull-left">
+                    <button id="btnPre" type="button" @(Model.RecordNo == 1 ? "disabled='disabled'" : "") class="btn btn-primary btn-sm" onclick="PreRecord()">&lt;&lt;</button>
+                    <button id="btnNext" type="button" @(Model.RecordNo == Model.Total ? "disabled='disabled'" : "") class="btn btn-primary btn-sm" onclick="NextRecord()">&gt;&gt;</button>
+
+                </li>
+                <li class="pull-left" style="padding-top:5px">
+                    @Html.TextBox("GoRecord", 0, new { maxlength = "4", @style = "width:50px;color:Black", @onkeydown = "clickGo(event)", @onkeypress = "return NumberOnly(event);", @onkeyup = "ValidRecNo(this)" })
+
+                    <span style="font-weight:bold"> @Model.RecordNo of @Model.Total</span>&nbsp;
+                </li>
+                <li class="pull-left" style="padding-top:5px; font-weight:bold">
+                    <b>|</b>&nbsp;Valid: <span style="color:#1ff11f;"> @Model.TotValid</span>&nbsp;<b>|</b>&nbsp;Invalid:<span style="color:red;"> @Model.TotInvalid</span>&nbsp;<b>|</b>&nbsp;Pending:<span style="color:#cac4c4;"> @( Model.Total - (Model.TotInvalid + Model.TotValid) )</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>

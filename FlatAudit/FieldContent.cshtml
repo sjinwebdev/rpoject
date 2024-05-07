@@ -1,0 +1,173 @@
+﻿@model JP_Model.PersonAudit
+@using JP_Model;
+@using JiapuAuditWeb.NewHelpers;
+    <script type="text/javascript">
+
+        function ChangeFieldBoxColor(ddl) {
+            var RelatedTxtBoxId = $(ddl)[0].id.replace("_FR", "_F");
+
+            var ReasonColor = 'Gray';
+            if ($(ddl).val() != "")
+                ReasonColor = $(ddl).val().split("_")[1];
+            $('#' + RelatedTxtBoxId).css("border", "solid 2px " + ReasonColor);
+        }
+        function ResetReasons() {
+            $.each($("input[id$='_F']"), function () {
+                if ($(this).val().trim() != '') {
+                    $(this).css("border", "solid 2px Gray");
+                    $('#' + $(this).attr('id') + 'R').val('');
+                    //$.each($("select[id$='_FR']"), function () { $(this).val(''); });
+                }
+                if ($(this).val().trim() == '') {
+                    $(this).css("border", "solid 2px Yellow");
+                    $('#' + $(this).attr('id') + 'R').find('option[value^="14"]').prop("selected", true);
+                }
+            });
+            //$.each($("select[id$='_FR']"), function () { $(this).val(''); });
+            //$.each($("input[id$='_F']"), function () { $(this).css("border", "solid 2px Gray"); });
+        }
+        function AutoSelectFieldReason(ddl) {
+            var ReasonId = 0;
+            var ReasonColor = 'Gray';
+            if ($(ddl).val() != "") {
+                ReasonId = parseInt($(ddl).val().split("_")[0])
+                ReasonColor = $(ddl).val().split("_")[1];
+            }
+            $(ddl).css("border", "solid 2px " + ReasonColor);
+
+            if (ReasonId == 18) {
+                $.each($("input[id$='_F']"), function () {
+                    if ($(this).val().trim() != '') {
+                        $(this).css("border", "solid 2px #1ff11f");
+                        $('#' + $(this).attr('id') + 'R').find('option[value^="' + ReasonId + '"]').prop("selected", true);
+                        //$.each($("select[id$='_FR']"), function () { $(this).val(''); });
+                    }
+                });
+            }
+
+        }
+     function SubmitField()
+    {
+        if ($('#ReasonIDColor').val() == '') {
+            NotificationFunctions('Select any record level reason to update.');
+            return false;
+        }
+        //$('#btnSave').attr("disabled","disabled");
+        var URL = "@Html.Raw(Url.Action("RecordSubmit", "FlatAudit", new {fid="xx", grpId = ViewBag.grpId, ReasonIDColor = "-1" }))";
+        URL = URL.replace("xx", encodeURIComponent($('#spnFileId').html()));
+        URL = URL.replace("-1", $('#ReasonIDColor').val());
+        var res = "";
+        //$("[id='allCreatedFocus']").val(allFocus);
+
+        $.post(URL, $('#dataEntryCreateForm').serialize(), function (res) {
+            //alert(res);
+            if (res) {
+                NotificationFunctions('Persona data Updated successfully.');
+
+                 //Url = "@Html.Raw(Url.Action("RefreshFieldContent", "Audit", new { @grpId = ViewBag.grpId, @idx = Model.RecordNo }))";
+
+                //$('#basicInfo').load(Url, function () { });
+
+                //$('#btnNext').click();
+                //$('#SName').focus();
+                //allFocus = [];
+                //currentFieldSelected = '';
+                return true;
+            }
+            else {
+                NotificationFunctions('Error occured while saving persona details.');
+                return false;
+            }
+
+        });
+    }
+    </script>
+<form id="dataEntryCreateForm" class="form-horizontal form-label-left">
+    @Html.AntiForgeryToken()
+    @Html.HiddenFor(model => model.PId)
+    <table width="100%">
+        <tr >           
+            <td height="20px" style="width:170px;" >
+                @Html.DropDownListFor(model => model.ReasonIDColor, new SelectList(TempData.TryPeek<List<SelectListItem>>("PersonReasons") as List<SelectListItem>, "Value", "Text"), "-Record Reason-", htmlAttributes: new { @style = "border:solid 2px " + (Model.RecRsnColor ?? "Gray"), @class = "select2_single", @required = "required", @onchange = "AutoSelectFieldReason(this)" })
+            </td>
+            <td style="padding:0px 5px 0px 0px; font-size:20px;">
+                <a class="fa fa-refresh" title="Reset all field selection" href="#" onclick="ResetReasons()"> </a>
+            </td>
+           
+        </tr>
+    </table>
+    <div class="separator-line"></div>
+    <div style="overflow:auto">
+        <table width="100%">
+            <tbody>
+                @{
+                    var fields = TempData.TryPeek<List<Field>>("FieldConfigs");
+                    foreach (PersonFact fact in Model.facts)
+                    {
+                        var isQc = fields.First(f => f.FieldName == fact.DisplayName).IsQC;
+                        <tr style="height:35px; background-color:@(fact.isMandate ? "" : "#fee2a5")">
+                            <td style="border-bottom:solid 2px #cac4c4; padding-left:4px;">
+                                <table width="100%">
+                                    @if (isQc)
+                                    {
+                                        <tr style="height:30px;">
+                                            <td style=" width:150px;">@fact.DisplayName:</td>
+                                            <td>
+                                                @if (fact.DisplayName.Contains("Date"))
+                                                {
+                                                    @Html.TextBox(fact.FType + "_F", fact.FValue, new { @maxlength = "20", @style = "border:solid 2px " + (string.IsNullOrEmpty(fact.FValue) && (fact.ReasonID == null) ? "Yellow" : fact.ColorCode ?? "Gray"), @dir = "ltr" });
+                                                }
+                                                else
+                                                {
+                                                    @Html.TextBox(fact.FType + "_F", fact.FValue, new { @maxlength = "20", @style = "border:solid 2px " + (string.IsNullOrEmpty(fact.FValue) && (fact.ReasonID == null) ? "Yellow" : fact.ColorCode ?? "Gray"), @dir = "ltr"/* , @readonly = "readonly" */ });
+                                                }
+
+                                            </td>
+                                            <td>
+                                                @Html.DropDownList(fact.FType + "_FR", new SelectList(!fact.DisplayName.Contains("Date") ? (TempData.TryPeek<List<SelectListItem>>("FieldReasons")).Where(item => !item.Value.StartsWith("11")) : TempData.TryPeek<List<SelectListItem>>("FieldReasons"), "Value", "Text", (string.IsNullOrEmpty(fact.FValue) && (fact.ReasonID == null) ? ("14_Yellow") : (fact.ReasonID + "_" + fact.ColorCode))), "-Field Reason-", htmlAttributes: new { @style = "width:157px;", @class = "select2_single",  @required = "required", @onchange = "ChangeFieldBoxColor(this)" })
+                                            </td>
+                                        </tr>
+                                        <tr style="height:25px;">
+                                            <td>Note:</td>
+                                            <td>
+                                                @Html.TextBox(fact.FType + "_FN", fact.FNote, new { @maxlength = "100", @style = "border:solid 2px Gray", @dir = "ltr" })
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                    }
+                                    else
+                                    {
+                                        <tr style="height:30px; visibility:hidden;">
+                                            <td style=" width:150px;">@fact.DisplayName:</td>
+                                            <td>
+                                                @if (fact.DisplayName.Contains("Date"))
+                                                {
+                                                    @Html.Hidden(fact.FType + "_F", fact.FValue, new { @maxlength = "20", @style = "border:solid 2px " + (string.IsNullOrEmpty(fact.FValue) && (fact.ReasonID == null) ? "Yellow" : fact.ColorCode ?? "Gray"), @dir = "ltr" });
+                                                }
+                                                else
+                                                {
+                                                    @Html.Hidden(fact.FType + "_F", fact.FValue, new { @maxlength = "20", @style = "border:solid 2px " + (string.IsNullOrEmpty(fact.FValue) && (fact.ReasonID == null) ? "Yellow" : fact.ColorCode ?? "Gray"), @dir = "ltr"/* , @readonly = "readonly" */ });
+                                                }
+
+                                            </td>
+                                            <td>
+                                                @Html.DropDownList(fact.FType + "_FR", new SelectList(!fact.DisplayName.Contains("Date") ? (TempData.TryPeek<List<SelectListItem>>("FieldReasons")).Where(item => !item.Value.StartsWith("11")) : TempData.TryPeek<List<SelectListItem>>("FieldReasons"), "Value", "Text", (string.IsNullOrEmpty(fact.FValue) && (fact.ReasonID == null) ? ("14_Yellow") : (fact.ReasonID + "_" + fact.ColorCode))), "-Field Reason-", htmlAttributes: new { @style = "width:157px;", @class = "select2_single",  @required = "required", @onchange = "ChangeFieldBoxColor(this)" })
+                                            </td>
+                                        </tr>
+                                        <tr style="height:25px;">
+                                            <td>Note:</td>
+                                            <td>
+                                                @Html.Hidden(fact.FType + "_FN", fact.FNote, new { @maxlength = "100", @style = "border:solid 2px Gray", @dir = "ltr" })
+                                            </td>
+                                            <td></td>
+                                        </tr>
+                                    }
+                                </table>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</form>
